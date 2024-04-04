@@ -230,6 +230,157 @@ void *sr_rip_timeout(void *sr_ptr) {
 
 void send_rip_request(struct sr_instance *sr){
     /* Fill your code here */
+	
+	/* malloc packet */
+	uint8_t* packet = (uint8_t*) malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
+	
+	/* rip hdr */
+	sr_rip_pkt_t* rip_hdr = (sr_rip_pkt_t*) (packet + sizeof(sr_ip_hdr_t) + sizeof(sr_ethernet_hdr_t) + sizeof(sr_udp_hdr_t));
+	rip_hdr->command = 1;
+	/* TODO: rip_hdr->version = ? */
+	/* TODO: what to do with entries? */
+	
+	/* udp hdr */
+	sr_udp_hdr_t* udp_hdr = (sr_udp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+	udp_hdr->port_src = htons(520);
+	udp_hdr->port_dst = htons(250);
+	udp_hdr->udp_len = sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
+	udp_hdr->udp_sum = 0;
+	udp_hdr->udp_sum = cksum(udp_hdr, udp_hdr->udp_len);
+	
+	/* ip hdr */
+	sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
+	ip_hdr->ip_ttl = 64;
+	ip_hdr->ip_p = ip_protocol_udp;
+	/* TODO: What IP source? */ 
+	ip_hdr->ip_src = ~(0x0); 
+	ip_hdr->ip_dst = ~(0x0);
+	ip_hdr->ip_v = 4;
+	ip_hdr->ip_off = htons(IP_DF);
+	ip_hdr->ip_tos = 0;
+	ip_hdr->ip_len = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
+	ip_hdr->ip_sum = 0;
+	ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+	
+	/* ethernet hdr */
+	sr_ethernet_hdr_t* ether_hdr = (sr_ethernet_hdr_t*) packet;
+	ether_hdr->ether_type = htons(ethertype_ip);
+	memset(ether_hdr->ether_dhost, 0xff, ETHER_ADDR_LEN);
+	/* TODO: What is source? */ 
+	memset(ether_hdr->ether_shost, 0xff, ETHER_ADDR_LEN);
+	
+	/* TODO: iterate through each interface and send out of all of them */
+	struct sr_if* if_list =0;
+	if_list = sr->if_list;
+	while (if_list) {
+		int success = sr_send_packet(sr, packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t), if_list->name);
+		if (success != 0) {
+			printf("Error in sending RIP request.");
+		} else {
+			printf("RIP request sent.");
+		}
+		if_list = if_list->next;
+	}
+	free(packet);
+	
+	
+	
+	
+}
+
+void send_rip_response(struct sr_instance *sr) {
+	
+	/* Fill your code here */
+		
+		/* malloc packet */
+		uint8_t* packet = (uint8_t*) malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
+		
+		/* rip hdr */
+		sr_rip_pkt_t* rip_hdr = (sr_rip_pkt_t*) (packet + sizeof(sr_ip_hdr_t) + sizeof(sr_ethernet_hdr_t) + sizeof(sr_udp_hdr_t));
+		rip_hdr->command = 2;
+		/* TODO: rip_hdr->version = ? */
+		/* TODO: what to do with entries? */
+		
+		/* printing routing table */
+		sr_print_routing_table(sr);
+		/* TODO: Do I need these locks? */
+		pthread_mutex_lock(&(sr->rt_lock));
+		struct sr_rt* rt_list = 0;
+		rt_list = sr->routing_table;
+		int i;
+		for (i = 0; i < 25; i++) {
+			if (rt_list) {
+				/* copy in entry */
+				struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));
+				/* TODO: Is this the right address? */
+				entry_copy->address = rt_list->dest.s_addr;
+				entry_copy->mask = rt_list->mask.s_addr;
+				/* TODO: Next hop parameter? */
+				/* entry_copy->next_hop = ? */
+				entry_copy->metric = rt_list->metric;
+				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry));
+			} else {
+				/* blank entry */
+				struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));
+				entry_copy->address = 0x0;
+				entry_copy->mask = 0x0;
+				/* TODO: Next hop parameter? */
+				entry_copy->next_hop = 0x0;
+				entry_copy->metric = htons(INFINITY);
+				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry));
+			}
+			rt_list = rt_list->next;
+		}
+
+		pthread_mutex_unlock(&(sr->rt_lock));
+		
+		
+		
+		/* udp hdr */
+		sr_udp_hdr_t* udp_hdr = (sr_udp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+		udp_hdr->port_src = htons(520);
+		udp_hdr->port_dst = htons(250);
+		udp_hdr->udp_len = sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
+		udp_hdr->udp_sum = 0;
+		udp_hdr->udp_sum = cksum(udp_hdr, udp_hdr->udp_len);
+		
+		/* ip hdr */
+		sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
+		ip_hdr->ip_ttl = 64;
+		ip_hdr->ip_p = ip_protocol_udp;
+		/* TODO: What IP source? */
+		 
+		ip_hdr->ip_src = ~(0x0);
+		ip_hdr->ip_dst = ~(0x0);
+		ip_hdr->ip_v = 4;
+		ip_hdr->ip_off = htons(IP_DF);
+		ip_hdr->ip_tos = 0;
+		ip_hdr->ip_len = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
+		ip_hdr->ip_sum = 0;
+		ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+		
+		/* ethernet hdr */
+		sr_ethernet_hdr_t* ether_hdr = (sr_ethernet_hdr_t*) packet;
+		ether_hdr->ether_type = htons(ethertype_ip);
+		memset(ether_hdr->ether_dhost, 0xff, ETHER_ADDR_LEN);
+		/* TODO: What is source? */
+		memset(ether_hdr->ether_shost, 0xff, ETHER_ADDR_LEN);
+		
+		/* TODO: iterate through each interface and send out of all of them */
+		struct sr_if* if_list =0;
+		if_list = sr->if_list;
+		while (if_list) {
+			int success = sr_send_packet(sr, packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t), if_list->name);
+			if (success != 0) {
+				printf("Error in sending RIP response.");
+			} else {
+				printf("RIP response sent.");
+			}
+			if_list = if_list->next;
+		}
+		free(packet);
+		
+	
 }
 
 void send_rip_update(struct sr_instance *sr){

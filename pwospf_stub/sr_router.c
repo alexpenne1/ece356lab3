@@ -294,8 +294,8 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
   
   struct sr_if* interface_check = sr_match_interface(sr, ip_packet->ip_dst);
   
-  /* TODO: does interface check include broadcasting packets? */
-  if (interface_check) { /*in local interface*/
+  
+  if (interface_check || (ip_packet->ip_dst == ~(0x0))) { /*in local interface*/
     
     
     
@@ -310,22 +310,29 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
     	uint8_t incoming_ip_proto = ip_packet->ip_p;
     	if (incoming_ip_proto == ip_protocol_udp) {
     		printf("Is UDP packet.\n");
-    		/* TODO: check udp checksum and length. how much to add to get udp header? */
+    		
     		sr_udp_hdr_t* incoming_udp_packet = (sr_udp_hdr_t*) (ip_packet + sizeof(sr_ip_hdr_t));
     		
     		/* TODO: Is packet RIP or other UDP? */
     		uint16_t port_dst = incoming_udp_packet->port_dst;
-    		if (port_dst == 520) {
+    		uint16_t port_src = incoming_udp_packet->port_src;
+    		if (port_dst == htons(520) && port_src == htons(520)) {
     			printf("Is RIP packet.\n");
     			
     			sr_rip_pkt_t* incoming_rip_packet = (sr_rip_pkt_t*)(incoming_udp_packet + sizeof(sr_udp_hdr_t));
     			uint8_t command = incoming_rip_packet->command;
-    			if (command == 1) {
+    			if (command == 2) {
     				printf("RIP response.\n");
-    				/* TODO: update routing table */
-    			} else {
+    				update_route_table(sr, ip_packet, incoming_rip_packet, ip_interface);
+    				/* TODO: implement update_route_table */
+    				
+    			} else if (command == 1){
     				printf("RIP request.\n");
-    				/* TODO: send RIP response */
+    				send_rip_response(sr);
+    				/* TODO: implement send RIP response */
+    			} else {
+    				printf("Unknown command.\n");
+    				return;
     			}
     		} else {
     			printf("Is not RIP packet, sending exception.\n");

@@ -49,5 +49,6 @@ void sr_print_routing_entry(struct sr_rt* entry);
 void *sr_rip_timeout(void *sr_ptr);
 void send_rip_request(struct sr_instance *sr);
 void send_rip_update(struct sr_instance *sr);
+void send_rip_response(struct sr_instance *sr);
 void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_pkt_t* rip_packet, char* iface);
 #endif  /* --  sr_RT_H -- */
