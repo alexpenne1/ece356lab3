@@ -294,7 +294,7 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
   
   struct sr_if* interface_check = sr_match_interface(sr, ip_packet->ip_dst);
   
-
+  /* TODO: does interface check include broadcasting packets? */
   if (interface_check) { /*in local interface*/
     
     
@@ -306,8 +306,21 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
     	send_icmp_reply(sr, 0, 9, packet, (struct sr_if*)ip_interface, packet_len);
     }
     else { 
-    	printf("Is TCP/UDP, sending exception.\n");
-      send_icmp_reply(sr, 3, 3, packet, (struct sr_if*)ip_interface, 0); /*send an exception is UDP or TCP payload is sent to one of the interfaces*/
+    	/* check protocol of ip packet */
+    	uint8_t incoming_ip_proto = ip_packet->ip_p;
+    	if (incoming_ip_proto == ip_protocol_udp) {
+    		printf("Is UDP packet.\n");
+    		/* TODO: check udp checksum and length */
+    		sr_udp_hdr_t* incoming_udp_packet = (sr_udp_hdr_t*) (ip_packet + sizeof(sr_ip_hdr_t));
+    		
+    		
+    		
+    	} else {
+    		printf("Is TCP, sending exception.\n");
+    		send_icmp_reply(sr, 3, 3, packet, (struct sr_if*)ip_interface, 0); /*send an exception is UDP or TCP payload is sent to one of the interfaces*/
+    	}
+    	
+    	
     } 
   } 
   /*if not within network/destined elsewhere*/
