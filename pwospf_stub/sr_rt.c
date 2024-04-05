@@ -316,23 +316,34 @@ void send_rip_response(struct sr_instance *sr) {
 		for (i = 0; i < 25; i++) {
 			if (rt_list) {
 				/* copy in entry */
-				struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));
+				
+				(rip_hdr->entries[i]).address = rt_list->dest.s_addr;
+				(rip_hdr->entries[i]).mask = rt_list->mask.s_addr;
+				(rip_hdr->entries[i]).metric = rt_list->metric;
+				(rip_hdr->entries[i]).next_hop = rt_list->gw.s_addr;
+				/*struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));*/
 				/* TODO: Is this the right address? */
-				entry_copy->address = rt_list->dest.s_addr;
-				entry_copy->mask = rt_list->mask.s_addr;
+				/*entry_copy->address = rt_list->dest.s_addr;
+				entry_copy->mask = rt_list->mask.s_addr;*/
 				/* TODO: Next hop parameter? */
-				entry_copy->next_hop = rt_list->gw.s_addr;
+				/*entry_copy->next_hop = rt_list->gw.s_addr;
 				entry_copy->metric = rt_list->metric;
-				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry));
+				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry)); */
 			} else {
+				
+				(rip_hdr->entries[i]).address = 0x0;
+				(rip_hdr->entries[i]).mask = 0x0;
+				(rip_hdr->entries[i]).metric = htons(INFINITY);
+				(rip_hdr->entries[i]).next_hop = 0x0;
+				
 				/* blank entry */
-				struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));
+				/*struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));
 				entry_copy->address = 0x0;
-				entry_copy->mask = 0x0;
+				entry_copy->mask = 0x0;*/
 				/* TODO: Next hop parameter? */
-				entry_copy->next_hop = 0x0;
+				/*entry_copy->next_hop = 0x0;
 				entry_copy->metric = htons(INFINITY);
-				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry));
+				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry));*/
 			}
 			rt_list = rt_list->next;
 		}

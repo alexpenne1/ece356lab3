@@ -311,17 +311,18 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
     	if (incoming_ip_proto == ip_protocol_udp) {
     		printf("Is UDP packet.\n");
     		
-    		sr_udp_hdr_t* incoming_udp_packet = (sr_udp_hdr_t*) (ip_packet + sizeof(sr_ip_hdr_t));
+    		sr_udp_hdr_t* incoming_udp_packet = (sr_udp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     		
     		/* TODO: Is packet RIP or other UDP? */
     		uint16_t port_dst = incoming_udp_packet->port_dst;
     		uint16_t port_src = incoming_udp_packet->port_src;
-    		printf("Des port: %d\nSrc Port: %d\n", port_dst, port_src);
-    		if (port_dst == 520 && port_src == 520) {
+    		printf("Des port: %d\nSrc Port: %d\n", htons(port_dst), htons(port_src));
+    		if (port_dst == htons(520) && port_src == htons(520)) {
     			printf("Is RIP packet.\n");
     			
-    			sr_rip_pkt_t* incoming_rip_packet = (sr_rip_pkt_t*)(incoming_udp_packet + sizeof(sr_udp_hdr_t));
+    			sr_rip_pkt_t* incoming_rip_packet = (sr_rip_pkt_t*)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t));
     			uint8_t command = incoming_rip_packet->command;
+    			printf("Command: %d\n", command);
     			if (command == 2) {
     				printf("RIP response.\n");
     				update_route_table(sr, ip_packet, incoming_rip_packet, ip_interface);
