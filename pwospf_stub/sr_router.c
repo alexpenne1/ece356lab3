@@ -316,7 +316,8 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
     		/* TODO: Is packet RIP or other UDP? */
     		uint16_t port_dst = incoming_udp_packet->port_dst;
     		uint16_t port_src = incoming_udp_packet->port_src;
-    		if (port_dst == htons(520) && port_src == htons(520)) {
+    		printf("Des port: %d\nSrc Port: %d\n", port_dst, port_src);
+    		if (port_dst == 520 && port_src == 520) {
     			printf("Is RIP packet.\n");
     			
     			sr_rip_pkt_t* incoming_rip_packet = (sr_rip_pkt_t*)(incoming_udp_packet + sizeof(sr_udp_hdr_t));
