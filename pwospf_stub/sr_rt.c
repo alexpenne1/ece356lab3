@@ -310,17 +310,20 @@ void send_rip_response(struct sr_instance *sr) {
 		sr_print_routing_table(sr);
 		/* TODO: Do I need these locks? */
 		pthread_mutex_lock(&(sr->rt_lock));
+		printf("Copying entries...\n");
 		struct sr_rt* rt_list = 0;
+		
 		rt_list = sr->routing_table;
 		int i;
 		for (i = 0; i < 25; i++) {
 			if (rt_list) {
 				/* copy in entry */
-				
+				printf("Copying entry number %d...\n", i);
 				(rip_hdr->entries[i]).address = rt_list->dest.s_addr;
 				(rip_hdr->entries[i]).mask = rt_list->mask.s_addr;
 				(rip_hdr->entries[i]).metric = rt_list->metric;
 				(rip_hdr->entries[i]).next_hop = rt_list->gw.s_addr;
+				rt_list = rt_list->next;
 				/*struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));*/
 				/* TODO: Is this the right address? */
 				/*entry_copy->address = rt_list->dest.s_addr;
@@ -330,10 +333,14 @@ void send_rip_response(struct sr_instance *sr) {
 				entry_copy->metric = rt_list->metric;
 				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry)); */
 			} else {
+				printf("Making blank entry number %d...\n", i);
 				
 				(rip_hdr->entries[i]).address = 0x0;
+				
 				(rip_hdr->entries[i]).mask = 0x0;
+				
 				(rip_hdr->entries[i]).metric = htons(INFINITY);
+				p
 				(rip_hdr->entries[i]).next_hop = 0x0;
 				
 				/* blank entry */
@@ -345,13 +352,14 @@ void send_rip_response(struct sr_instance *sr) {
 				entry_copy->metric = htons(INFINITY);
 				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry));*/
 			}
-			rt_list = rt_list->next;
+			printf("Finished entry number %d...\n", i);
+			
 		}
-
+		printf("Done copying entries...\n");
 		pthread_mutex_unlock(&(sr->rt_lock));
 		
 		
-		
+		printf("Making UDP hdr...\n");
 		/* udp hdr */
 		sr_udp_hdr_t* udp_hdr = (sr_udp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 		udp_hdr->port_src = htons(520);
@@ -359,7 +367,7 @@ void send_rip_response(struct sr_instance *sr) {
 		udp_hdr->udp_len = sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
 		udp_hdr->udp_sum = 0;
 		udp_hdr->udp_sum = cksum(udp_hdr, udp_hdr->udp_len);
-		
+		printf("Making IP hdr...\n");
 		/* ip hdr */
 		sr_ip_hdr_t* ip_hdr = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
 		ip_hdr->ip_ttl = 64;
@@ -373,7 +381,7 @@ void send_rip_response(struct sr_instance *sr) {
 		ip_hdr->ip_tos = 0;
 		ip_hdr->ip_len = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
 		
-		
+		printf("Making Ethernet hdr...\n");
 		/* ethernet hdr */
 		sr_ethernet_hdr_t* ether_hdr = (sr_ethernet_hdr_t*) packet;
 		ether_hdr->ether_type = htons(ethertype_ip);
@@ -384,11 +392,13 @@ void send_rip_response(struct sr_instance *sr) {
 		/* TODO: iterate through each interface and send out of all of them */
 		struct sr_if* if_list =0;
 		if_list = sr->if_list;
+		printf("Iterating through interfaces...\n");
 		while (if_list) {
 			memcpy(ether_hdr->ether_shost, if_list->addr, ETHER_ADDR_LEN);
 			ip_hdr->ip_src = if_list->ip;
 			ip_hdr->ip_sum = 0;
 			ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+			print_hdrs(packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
 			int success = sr_send_packet(sr, packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t), if_list->name);
 			if (success != 0) {
 				printf("Error in sending RIP response.");
