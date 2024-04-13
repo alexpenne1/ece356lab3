@@ -340,7 +340,7 @@ void send_rip_response(struct sr_instance *sr) {
 				(rip_hdr->entries[i]).mask = 0x0;
 				
 				(rip_hdr->entries[i]).metric = htons(INFINITY);
-				p
+				
 				(rip_hdr->entries[i]).next_hop = 0x0;
 				
 				/* blank entry */
@@ -419,9 +419,56 @@ void send_rip_update(struct sr_instance *sr){
     pthread_mutex_unlock(&(sr->rt_lock));
 }
 
-void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet ,sr_rip_pkt_t* rip_packet, char* iface){
+void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_pkt_t* rip_packet, char* iface){
     pthread_mutex_lock(&(sr->rt_lock));
     /* Fill your code here */
+
+    /*need to compare routing tables*/
+    sr_print_routing_table(sr);
+
+    printf("Comparing routing table entries...\n");
+    struct sr_rt* sr_entry = sr->routing_table;
+    int entry_found = 0;
+
+    for (int i = 0; i < MAX_NUM_ENTRIES; i++) {
+        struct entry *current_entry = &(rip_packet->entries[i]);
+        while (sr_entry != 0) {
+            /*if dest addr are a match*/
+            if (current_entry->address == sr_entry->dest.s_addr) {
+                /*if metric of the rip packet is lower then update the routing table, metric and next_hop*/
+                if (current_entry->metric < sr_entry->metric) {
+                    printf("Found lower cost");
+                    sr_entry->metric = current_entry->metric+1;
+                    struct in_addr ip_hop;
+                    ip_hop.s_addr = ip_packet->ip_dst;
+                    struct sr_rt* next_hop_ip = search_rt(sr, ip_hop);
+                    sr_entry->gw.s_addr = next_hop_ip;
+                    /*need to send a rip response*/
+                    printf("Sending RIP Response");
+                    send_rip_response(sr);
+                }
+                entry_found = 1;
+                break;
+            }
+            sr_entry = sr_entry->next;
+
+            /*if no match was found*/
+            if (!entry_found) {
+                sr_add_rt_entry(sr, current_entry->address, current_entry->next_hop, current_entry->mask, current_entry->metric, iface);
+                send_rip_response(sr);
+            }
+        }
+        /* ????? */
+        pthread_mutex_unlock(&(sr->rt_lock));
+    }
+
+    
+
+
+    //will be called after receiving a RIP response packet
+    //enable triggered updates here -> when routing table changes, the router sends a RIP response immediately
     
     pthread_mutex_unlock(&(sr->rt_lock));
 }
+
+
