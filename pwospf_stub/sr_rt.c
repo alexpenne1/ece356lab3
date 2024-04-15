@@ -460,9 +460,10 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
             	time(&now);
             	sr_entry->updated_time = now;
             	/*if metric of the rip packet is lower then update the routing table, metric and next_hop*/
-                if (current_entry->metric < sr_entry->metric) {
-                    printf("Found lower cost");
-                    sr_entry->metric = current_entry->metric+1;
+                if ((current_entry->metric +1) < sr_entry->metric) {
+                    printf("Found lower cost\n");
+                    printf("Current metric:%d\nLower metric:%d\n", (current_entry->metric +1), sr_entry->metric);
+                    sr_entry->metric = current_entry->metric + 1;
                     /*
                     struct in_addr ip_hop;
                     ip_hop.s_addr = ip_packet->ip_src;
@@ -482,7 +483,7 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
            new_gw.s_addr = current_entry->next_hop;
            struct in_addr new_mask;
            new_mask.s_addr = current_entry->mask;
-           sr_add_rt_entry(sr, new_addr, new_gw, new_mask, current_entry->metric, iface);
+           sr_add_rt_entry(sr, new_addr, new_gw, new_mask, current_entry->metric + 1, iface);
            send_rip_response(sr);
            change_made = 1;
         }
