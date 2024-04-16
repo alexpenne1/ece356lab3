@@ -336,7 +336,7 @@ void send_rip_response(struct sr_instance *sr) {
 		for (i = 0; i < 25; i++) {
 			if (rt_list) {
 				/* copy in entry */
-				printf("Copying entry number %d...\n", i);
+				
 				(rip_hdr->entries[i]).address = rt_list->dest.s_addr;
 				(rip_hdr->entries[i]).mask = rt_list->mask.s_addr;
 				(rip_hdr->entries[i]).metric = rt_list->metric;
@@ -351,7 +351,7 @@ void send_rip_response(struct sr_instance *sr) {
 				entry_copy->metric = rt_list->metric;
 				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry)); */
 			} else {
-				printf("Making blank entry number %d...\n", i);
+				
 				
 				(rip_hdr->entries[i]).address = 0x0;
 				
@@ -370,7 +370,7 @@ void send_rip_response(struct sr_instance *sr) {
 				entry_copy->metric = htons(INFINITY);
 				memcpy(&(rip_hdr->entries[i]), entry_copy, sizeof(struct entry));*/
 			}
-			printf("Finished entry number %d...\n", i);
+			
 			
 		}
 		printf("Done copying entries...\n");
@@ -382,7 +382,7 @@ void send_rip_response(struct sr_instance *sr) {
 		sr_udp_hdr_t* udp_hdr = (sr_udp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 		udp_hdr->port_src = htons(520);
 		udp_hdr->port_dst = htons(520);
-		udp_hdr->udp_len = sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t);
+		udp_hdr->udp_len = htons(sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
 		udp_hdr->udp_sum = 0;
 		udp_hdr->udp_sum = cksum(udp_hdr, udp_hdr->udp_len);
 		printf("Making IP hdr...\n");
@@ -416,7 +416,7 @@ void send_rip_response(struct sr_instance *sr) {
 			ip_hdr->ip_src = if_list->ip;
 			ip_hdr->ip_sum = 0;
 			ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
-			print_hdrs(packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
+			/*print_hdrs(packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));*/
 			int success = sr_send_packet(sr, packet, sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t), if_list->name);
 			if (success != 0) {
 				printf("Error in sending RIP response.");
@@ -452,9 +452,11 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
         struct entry *current_entry = &(rip_packet->entries[i]); /* grab the entry */
         entry_found = 0;
         sr_entry = sr->routing_table;
+        
         while (sr_entry && (entry_found == 0)) { /* compare it with every entry in routing table */
             /*if dest addr are a match*/
             if (current_entry->address == sr_entry->dest.s_addr) {
+            	
             	/* update time */
             	time_t now;
             	time(&now);
@@ -462,8 +464,10 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
             	/*if metric of the rip packet is lower then update the routing table, metric and next_hop*/
                 if ((current_entry->metric +1) < sr_entry->metric) {
                     printf("Found lower cost\n");
+                   
                     printf("Current metric:%d\nLower metric:%d\n", (current_entry->metric +1), sr_entry->metric);
                     sr_entry->metric = current_entry->metric + 1;
+                    strncpy(sr_entry->interface,iface,sr_IFACE_NAMELEN);
                     /*
                     struct in_addr ip_hop;
                     ip_hop.s_addr = ip_packet->ip_src;
