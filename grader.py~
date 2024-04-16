@@ -12,7 +12,7 @@ parser.add_argument('-t', metavar='test', type=int, default=None, help='test cas
 parser.add_argument('-d', metavar='debug', type=int, default=0, help='debug', choices=range(0, 2))
 args = parser.parse_args()
 
-path = './pwospf_stub/sr'
+path = './router/sr'
 if __name__ == '__main__':
     if not os.path.exists(path):
         print("File not exist: %s" % path)
