@@ -229,6 +229,26 @@ void *sr_rip_timeout(void *sr_ptr) {
 		time_t now;
 		time(&now);
 		/* accomodate for first item expired */
+		/* check for down interfaces */
+		struct sr_if* if_list = sr->if_list;
+		
+		while (if_list) {
+			if (sr_obtain_interface_status(sr, if_list->name) == 0) {
+				printf("Interface down: %s\n", if_list->name);
+				struct sr_rt* rt_list2 = sr->routing_table;
+				while (rt_list2) {
+					if (strcmp(rt_list2->interface, if_list->name)==0) {
+						printf("Found iface match for down iface.\n");
+						rt_list2->metric = htons(INFINITY);
+					}
+					rt_list2 = rt_list2->next;
+				}
+			}
+			if_list = if_list->next;
+		}
+		
+		
+		
 		struct sr_rt* rt_list = 0;
 		rt_list = sr->routing_table;
 		while (rt_list->next) {
@@ -484,7 +504,7 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
            struct in_addr new_addr;
            new_addr.s_addr = current_entry->address;
            struct in_addr new_gw;
-           new_gw.s_addr = current_entry->next_hop;
+           new_gw.s_addr = ip_packet->ip_src;
            struct in_addr new_mask;
            new_mask.s_addr = current_entry->mask;
            sr_add_rt_entry(sr, new_addr, new_gw, new_mask, current_entry->metric + 1, iface);

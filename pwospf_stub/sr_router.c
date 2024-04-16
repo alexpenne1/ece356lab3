@@ -179,8 +179,8 @@ void sr_handlearp(struct sr_instance* sr, uint8_t* arp_buffer, char* interface, 
 			  }
 			  sr_arpreq_destroy(&sr->cache, request);
 			  
-		  }
-		  printf("No requests found matching arp reply.\n");
+		  } else {
+		  printf("No requests found matching arp reply.\n"); }
 		  
 		  break;
 	default:
@@ -380,7 +380,15 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
       struct sr_if* next_hop_interface = sr_get_interface(sr, next_hop_ip->interface);
       /*check arp cache for the next MAC address corresponding to the next-hop IP */
       printf("Searching for next hop MAC address.\n");
-      uint32_t nh_addr = next_hop_ip->dest.s_addr;
+      uint32_t nh_addr = 0;
+      if (next_hop_ip->gw.s_addr == 0) {
+    	  nh_addr = ip_packet->ip_dst;
+      } else {
+    	  nh_addr = next_hop_ip->gw.s_addr;
+      }
+      
+      sr_print_routing_table(sr);
+      printf("Next hop address: %d\n", (nh_addr));
       struct sr_arpentry* entry = sr_arpcache_lookup(&sr->cache, nh_addr);
       if (entry) { /* found entry */
     	  printf("Entry found. Forwarding packet.\n");
@@ -399,7 +407,7 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
       } else {
     	  printf("No entry found. Adding this packet to queue:\n");
     	  print_hdr_ip((uint8_t*)ip_packet);
-    	  sr_arpcache_queuereq(&sr->cache, ip_packet->ip_dst, fwd_packet, packet_len, next_hop_ip->interface); /*i'm assuming that sr_arpcache_sweepreqs handles everything */ 
+    	  sr_arpcache_queuereq(&sr->cache, nh_addr, fwd_packet, packet_len, next_hop_ip->interface); /*i'm assuming that sr_arpcache_sweepreqs handles everything */ 
       }	
   } 
 } 

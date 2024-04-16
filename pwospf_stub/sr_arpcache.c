@@ -64,7 +64,7 @@ void sr_send_arp_request(struct sr_instance* sr, struct sr_arpreq* arp_request) 
 		printf("No entry found in table.");
 		sr_arpreq_destroy(&sr->cache, arp_request);
 		free(mem_block);
-		
+		return;
 	}
 	
 	struct sr_if* iface = sr_get_interface(sr, routing_table_entry->interface);
@@ -83,7 +83,13 @@ void sr_send_arp_request(struct sr_instance* sr, struct sr_arpreq* arp_request) 
 	memcpy(arp_header->ar_sha, iface->addr, ETHER_ADDR_LEN);
 	memset(arp_header->ar_tha, 0x00, ETHER_ADDR_LEN);
 	arp_header->ar_sip = iface->ip;
-	arp_header->ar_tip = arp_request->ip;
+	uint32_t next_hop_ip = 0;
+	if (routing_table_entry->gw.s_addr ==0) {
+		next_hop_ip = arp_request->ip;
+	} else {
+		next_hop_ip = routing_table_entry->gw.s_addr;
+	}
+	arp_header->ar_tip = next_hop_ip;
 
 	memcpy(ethernet_header->ether_shost, iface->addr, ETHER_ADDR_LEN);
 	memset(ethernet_header->ether_dhost, 0xff, ETHER_ADDR_LEN);
