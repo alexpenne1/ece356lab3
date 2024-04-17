@@ -57,14 +57,19 @@ void sr_send_arp_request(struct sr_instance* sr, struct sr_arpreq* arp_request) 
 	struct in_addr ip_check;
 	
 	ip_check.s_addr = arp_request->ip;
+	printf("IP to send to: %d\n", arp_request->ip);
 	
 	struct sr_rt* routing_table_entry = search_rt(sr, ip_check);
+	
 	printf("Checking if entry\n");
 	if (routing_table_entry == NULL) {
 		printf("No entry found in table.");
 		sr_arpreq_destroy(&sr->cache, arp_request);
 		free(mem_block);
 		return;
+	} else {
+		printf("Entry found:\n");
+		sr_print_routing_entry(routing_table_entry);
 	}
 	
 	struct sr_if* iface = sr_get_interface(sr, routing_table_entry->interface);

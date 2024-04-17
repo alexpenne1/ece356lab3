@@ -383,9 +383,12 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
       uint32_t nh_addr = 0;
       if (next_hop_ip->gw.s_addr == 0) {
     	  nh_addr = ip_packet->ip_dst;
+    	  printf("ip dst used\n");
       } else {
     	  nh_addr = next_hop_ip->gw.s_addr;
+    	  printf("gw used\n");
       }
+      printf("next hop ip: %d\n", nh_addr);
       
       sr_print_routing_table(sr);
       printf("Next hop address: %d\n", (nh_addr));
@@ -406,6 +409,7 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
     	  }
       } else {
     	  printf("No entry found. Adding this packet to queue:\n");
+    	  printf("Next hop ip:%d\n", nh_addr);
     	  print_hdr_ip((uint8_t*)ip_packet);
     	  sr_arpcache_queuereq(&sr->cache, nh_addr, fwd_packet, packet_len, next_hop_ip->interface); /*i'm assuming that sr_arpcache_sweepreqs handles everything */ 
       }	
@@ -572,7 +576,13 @@ int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t*
 	/* populate ethernet header */
 	
 	ethernet_header->ether_type = htons(ethertype_ip);
-	struct sr_arpentry* entry = sr_arpcache_lookup(&sr->cache, routing_table_entry->gw.s_addr);
+	uint32_t nh_addr = 0;
+	if (routing_table_entry->gw.s_addr == 0) {
+		nh_addr = incoming_ip_hdr->ip_src;
+	} else {
+		nh_addr = routing_table_entry->gw.s_addr;
+	}
+	struct sr_arpentry* entry = sr_arpcache_lookup(&sr->cache, nh_addr);
 	struct sr_if* iface2 = sr_get_interface(sr, iface->name);
 	
 	      if (entry) { /* found entry */
@@ -592,7 +602,7 @@ int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t*
 	    	  printf("No forwarding MAC entry found. Adding to queue.\n");
 	    	  printf("ICMP packet adding to queue:\n\n");
 	    	  print_hdrs(client_memory, total_size);
-	    	  sr_arpcache_queuereq(&(sr->cache), routing_table_entry->gw.s_addr, client_memory, total_size, iface2->name); /*i'm assuming that sr_arpcache_sweepreqs handles everything */ 
+	    	  sr_arpcache_queuereq(&(sr->cache), nh_addr, client_memory, total_size, iface2->name); /*i'm assuming that sr_arpcache_sweepreqs handles everything */ 
 	}
 	/*free(icmp_header);*/
 	return 0;
