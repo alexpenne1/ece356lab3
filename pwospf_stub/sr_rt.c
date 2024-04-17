@@ -217,9 +217,11 @@ void sr_print_routing_entry(struct sr_rt* entry)
 
 
 void *sr_rip_timeout(void *sr_ptr) {
+	
     struct sr_instance *sr = sr_ptr;
     while (1) {
         sleep(5);
+        printf("rip timeout fxn...\n");
         pthread_mutex_lock(&(sr->rt_lock));
         /* Fill your code here */
 		
@@ -335,6 +337,13 @@ void send_rip_response(struct sr_instance *sr) {
 	
 	/* Fill your code here */
 		
+	/* NEW: iterate through each interface here */
+	struct sr_if* if_list =0;
+	if_list = sr->if_list;
+	printf("Iterating through interfaces...\n");
+	while (if_list) {
+	
+	
 		/* malloc packet */
 		uint8_t* packet = (uint8_t*) malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_udp_hdr_t) + sizeof(sr_rip_pkt_t));
 		
@@ -359,7 +368,15 @@ void send_rip_response(struct sr_instance *sr) {
 				
 				(rip_hdr->entries[i]).address = rt_list->dest.s_addr;
 				(rip_hdr->entries[i]).mask = rt_list->mask.s_addr;
-				(rip_hdr->entries[i]).metric = rt_list->metric;
+				
+				if (strcmp(rt_list->interface, if_list->name)==0) {
+					/*(rip_hdr->entries[i]).metric = htons(INFINITY);*/
+					(rip_hdr->entries[i]).metric = rt_list->metric;
+				} else {
+					(rip_hdr->entries[i]).metric = rt_list->metric;
+				}
+				
+				
 				(rip_hdr->entries[i]).next_hop = rt_list->gw.s_addr;
 				rt_list = rt_list->next;
 				/*struct entry* entry_copy = (struct entry*) malloc(sizeof(struct entry));*/
@@ -428,10 +445,9 @@ void send_rip_response(struct sr_instance *sr) {
 		
 		
 		/* TODO: iterate through each interface and send out of all of them */
-		struct sr_if* if_list =0;
-		if_list = sr->if_list;
-		printf("Iterating through interfaces...\n");
-		while (if_list) {
+		
+		
+			
 			memcpy(ether_hdr->ether_shost, if_list->addr, ETHER_ADDR_LEN);
 			ip_hdr->ip_src = if_list->ip;
 			ip_hdr->ip_sum = 0;
@@ -443,10 +459,11 @@ void send_rip_response(struct sr_instance *sr) {
 			} else {
 				printf("RIP response sent.");
 			}
-			if_list = if_list->next;
-		}
-		free(packet);
 		
+		
+		free(packet);
+		if_list = if_list->next;
+	}
 	
 }
 
