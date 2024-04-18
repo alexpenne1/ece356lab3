@@ -440,11 +440,15 @@ struct sr_rt* search_rt(struct sr_instance* sr, struct in_addr addr) {
 /* Sends ICMP replies of all types */
 int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t* packet, struct sr_if* interface, unsigned int len) {
 	
+	
+	
 	sr_ip_hdr_t* incoming_ip_hdr = (sr_ip_hdr_t*) (packet+sizeof(sr_ethernet_hdr_t));
 	sr_icmp_hdr_t* incoming_icmp_hdr = 0;
 	if (type == 0) {
 		incoming_icmp_hdr = (sr_icmp_hdr_t*) (packet+sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t));
 	}
+	
+	
 	
 	unsigned int icmp_len = 0;
 	unsigned int total_size = 0;
@@ -461,6 +465,17 @@ int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t*
 			break;
 	
 	default:
+			/* check if interface down if echo reply */
+			printf("Echo, check first if iface down\n");
+			struct in_addr ip_check_iface;
+			ip_check_iface.s_addr = incoming_ip_hdr->ip_dst;
+			struct sr_rt* routing_table_entry = search_rt(sr, ip_check_iface);
+			printf("iface: %s\niface status:%d\n", routing_table_entry->interface, (sr_obtain_interface_status(sr, routing_table_entry->interface)));
+			if (sr_obtain_interface_status(sr, routing_table_entry->interface)==0) {
+				printf("Iface down. Sending ICMP exception.\n");
+				send_icmp_reply(sr, 3, 0, packet, interface, len);
+				return 0;
+			}
 			printf("ICMP is NOT Type 3 or 11.\n");
 			printf("Incoming length: %d\n", len);
 			icmp_len = sizeof(sr_icmp_hdr_t);
@@ -542,6 +557,7 @@ int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t*
 		struct sr_rt* routing_table_entry = search_rt(sr, ip_check);
 		struct sr_if* iface = sr_get_interface(sr, routing_table_entry->interface);
 	
+		
 
   /*populate ip head*/
 	if (type != 0) {
@@ -552,7 +568,7 @@ int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t*
 			ip_header->ip_tos = 0;
 			ip_header->ip_ttl = 64;
 			ip_header->ip_p = ip_protocol_icmp;
-			ip_header->ip_src = iface->ip;
+			ip_header->ip_src = incoming_ip_hdr->ip_dst;
 			ip_header->ip_dst = incoming_ip_hdr->ip_src;
 		
 	} else { 
@@ -560,7 +576,7 @@ int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t*
 			ip_header->ip_tos = 0;
 			ip_header->ip_ttl = 64;
 			ip_header->ip_p = ip_protocol_icmp;
-			ip_header->ip_src = iface->ip;
+			ip_header->ip_src = incoming_ip_hdr->ip_dst;
 			ip_header->ip_dst = incoming_ip_hdr->ip_src;
 	}
 	

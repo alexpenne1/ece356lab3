@@ -369,6 +369,7 @@ void send_rip_response(struct sr_instance *sr) {
 				(rip_hdr->entries[i]).address = rt_list->dest.s_addr;
 				(rip_hdr->entries[i]).mask = rt_list->mask.s_addr;
 				/* split horizon */
+			
 				if (strcmp(rt_list->interface, if_list->name)==0) {
 					(rip_hdr->entries[i]).metric = htons(INFINITY);
 					
