@@ -492,8 +492,18 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
         sr_entry = sr->routing_table;
         
         while (sr_entry && (entry_found == 0)) { /* compare it with every entry in routing table */
-            /*if dest addr are a match*/
+            /* if gateway is 0, don't compare and try to change */
+        	
+        	/*if dest addr are a match*/
             if (current_entry->address == sr_entry->dest.s_addr) {
+            	
+            	/* if gateway of current is 0, check interface status */
+            	/* if up, set metric to 0, if down, don't do anything */
+            	if (sr_entry->gw.s_addr == 0x0) {
+            		if (sr_obtain_interface_status(sr, sr_entry->interface)!=0) {
+            			sr_entry->metric = 0;
+            		}
+            	} else {
             	
             	/* update time */
             	time_t now;
@@ -513,12 +523,15 @@ void update_route_table(struct sr_instance *sr, sr_ip_hdr_t* ip_packet, sr_rip_p
                     sr_entry->gw.s_addr = ip_packet->ip_src;
                     change_made = 1;
                 }
+            	}
                 entry_found = 1;
             }
+        	
             sr_entry = sr_entry->next;            
         }
         /*if no match was found*/
         if (!entry_found) {
+        	printf("Adding entry!\n");
            struct in_addr new_addr;
            new_addr.s_addr = current_entry->address;
            struct in_addr new_gw;

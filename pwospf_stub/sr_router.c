@@ -372,11 +372,12 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
       ip_check.s_addr = ip_packet->ip_dst;
       struct sr_rt* next_hop_ip = search_rt(sr, ip_check);
       
-      if (next_hop_ip == 0) {
+      if (next_hop_ip == 0 || (next_hop_ip->metric == htons(INFINITY))) {
         printf("Next hop not found.\n");
         send_icmp_reply(sr, 3, 0, packet, (struct sr_if*)ip_interface, 0); /*port unreachable*/
         return; /*discard packet*/
       }
+      sr_print_routing_entry(next_hop_ip);
       struct sr_if* next_hop_interface = sr_get_interface(sr, next_hop_ip->interface);
       /*check arp cache for the next MAC address corresponding to the next-hop IP */
       printf("Searching for next hop MAC address.\n");
@@ -391,7 +392,7 @@ void sr_handle_ip(struct sr_instance* sr, uint8_t* packet, char* ip_interface, u
       printf("next hop ip: %d\n", nh_addr);
       
       sr_print_routing_table(sr);
-      printf("Next hop address: %d\n", (nh_addr));
+      
       struct sr_arpentry* entry = sr_arpcache_lookup(&sr->cache, nh_addr);
       if (entry) { /* found entry */
     	  printf("Entry found. Forwarding packet.\n");
@@ -467,11 +468,10 @@ int send_icmp_reply(struct sr_instance* sr, uint8_t type, uint8_t code, uint8_t*
 	default:
 			/* check if interface down if echo reply */
 			printf("Echo, check first if iface down\n");
-			struct in_addr ip_check_iface;
-			ip_check_iface.s_addr = incoming_ip_hdr->ip_dst;
-			struct sr_rt* routing_table_entry = search_rt(sr, ip_check_iface);
-			printf("iface: %s\niface status:%d\n", routing_table_entry->interface, (sr_obtain_interface_status(sr, routing_table_entry->interface)));
-			if (sr_obtain_interface_status(sr, routing_table_entry->interface)==0) {
+			struct sr_if* ip_check_iface = sr_match_interface(sr, incoming_ip_hdr->ip_dst);
+			
+			printf("iface: %s\niface status:%d\n", ip_check_iface->name, (sr_obtain_interface_status(sr, ip_check_iface->name)));
+			if (sr_obtain_interface_status(sr, ip_check_iface->name)==0) {
 				printf("Iface down. Sending ICMP exception.\n");
 				send_icmp_reply(sr, 3, 0, packet, interface, len);
 				return 0;

@@ -93,6 +93,7 @@ void sr_send_arp_request(struct sr_instance* sr, struct sr_arpreq* arp_request) 
 		next_hop_ip = arp_request->ip;
 	} else {
 		next_hop_ip = routing_table_entry->gw.s_addr;
+		
 	}
 	arp_header->ar_tip = next_hop_ip;
 
